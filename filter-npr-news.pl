@@ -17,7 +17,7 @@ use constant {
 };
 
 # list of times we want
-my @keywords = qw( 7AM 8AM 12PM 7PM );
+my @keywords = qw( 7AM 8AM 12PM 6PM 7PM );
 my $days_to_keep = 7;
 
 my $URL = 'http://www.npr.org/rss/podcast.php?id=500005';
