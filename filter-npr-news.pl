@@ -176,7 +176,7 @@ sub get_dbh {
 
 sub write_log {
     open my $logfile, '>>', LOGFILE;
-    my $now = DateTime->now();
+    my $now = DateTime->now( time_zone => 'America/New_York' );
     my $ts  = $now->ymd . q{ } . $now->hms . q{ };
     foreach my $line ( @_ ) {
         print {$logfile} $ts . $line . "\n";
