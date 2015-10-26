@@ -10,6 +10,8 @@ use strict;
 use feature 'say';
 
 use constant {
+    TITLE_ADD   => ' (filtered by packy)',
+    TITLE_MAX   => 40, # characters
     LOGFILE     => '/tmp/npr-news.txt',
     DATAFILE    => '/Users/packy/data/filter-npr-news.db',
     SLEEP_FOR   => 120, # seconds (2 minutes)
@@ -49,6 +51,10 @@ foreach my $retry (1 .. MAX_RETRIES+1) {
         write_log("MAX_RETRIES (".MAX_RETRIES.") exceeded");
     }
 
+    if ($ENV{NPR_NOSLEEP}) {
+        last;
+    }
+
     write_log("Sleeping for ".SLEEP_FOR." seconds...");
     sleep SLEEP_FOR;
     write_log("Trying RSS feed again (retry #$retry)");
@@ -64,9 +70,21 @@ foreach my $item ( @$items ) {
     $rss->add_item(%$item);
 }
 
+re_title($rss);
+
 write_log("Writing RSS XML to stdout");
 say $rss->as_string;
 
+
+sub re_title {
+    my $rss = shift;
+    my $existing_title = $rss->channel('title');
+    my $add_len        = length(TITLE_ADD);
+    if (length($existing_title) + $add_len > TITLE_MAX) {
+        $existing_title = substr($existing_title, 0, TITLE_MAX - $add_len - 1);
+    }
+    $rss->channel('title' => $existing_title . TITLE_ADD);
+}
 
 sub get_items {
     my $items = shift;
