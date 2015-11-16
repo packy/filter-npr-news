@@ -80,6 +80,7 @@ foreach my $retry (1 .. MAX_RETRIES + 1) {
     # sleep, and the choices were add command line switch processing
     # or check an environment variable. This was the simpler option.
     if ($ENV{NPR_NOSLEEP}) {
+        write_log("NPR_NOSLEEP=$ENV{NPR_NOSLEEP}; not sleeping");
         last;
     }
 
@@ -151,6 +152,9 @@ sub get_items_from_database {
         if ($title !~ /$re/ && ! $ENV{NPR_NOSKIP}) {
             write_log("'$title' doesn't match $re; skipping");
             next;
+        }
+        elsif ($ENV{NPR_NOSKIP}) {
+            write_log("NPR_NOSKIP=$ENV{NPR_NOSKIP}; not skipping");
         }
 
         # check to see if we already have it in the DB
