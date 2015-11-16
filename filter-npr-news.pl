@@ -28,6 +28,7 @@ use constant {
     MEDIA_URL   => 'http://packy.dardan.com/npr',
 
     TZ          => 'America/New_York',
+    LOG_KEEP    => 48, # number of old log files to keep
     LOGFILE     => '/tmp/npr-news.txt',
     XMLFILE     => '/tmp/npr-news.xml',
     IN_DIR      => '/tmp/incoming',
@@ -393,8 +394,32 @@ sub write_log {
     close $logfile;
 }
 
+sub log_rename_and_push {
+    my ($old, $new) = @_;
+    return unless -e $old;
+    rename $old, $new;
+    push_to_remotehost($new, REMOTE_DIR);
+}
+
+sub log_rotate {
+    my ($old, $new);
+
+    my $num_digits = length(LOG_KEEP);
+    my $log_format = LOGFILE;
+    $log_format =~ s/(\.[^\.]+)$/-%0${num_digits}d$1/;
+
+    foreach my $i (reverse 1 .. LOG_KEEP - 1) {
+        $old = sprintf $log_format, $i;
+        $new = sprintf $log_format, $i + 1;
+        log_rename_and_push($old, $new);
+    }
+
+    $new = sprintf $log_format, 1;
+    log_rename_and_push(LOGFILE, $new);
+}
+
 BEGIN {
-    unlink LOGFILE; # write a new log each time we run
+    log_rotate(); # rotate out old log files
     write_log('Started run'); # log that the run has started
 
     # register a DIE handler that will write whatever message I die() with
