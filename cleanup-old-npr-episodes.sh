@@ -1,4 +1,4 @@
-#!/usr/bin/bash
+#!/ramdisk/bin/bash
 
 HOME=/home2/dardanco
 DIRS="$HOME/www/packy/npr"
