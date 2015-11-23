@@ -422,7 +422,7 @@ sub log_rotate {
     log_rename_and_push(LOGFILE, $new);
 }
 
-BEGIN {
+INIT {
     log_rotate(); # rotate out old log files
     write_log('Started run'); # log that the run has started
 
