@@ -4,6 +4,7 @@ use DBI;
 use Data::Dumper::Concise;
 use DateTime;
 use DateTime::Format::Mail;
+use File::Basename;
 use LWP::Simple;
 use Net::OpenSSH;
 use URI;
@@ -250,6 +251,11 @@ sub same_show_as_last_time {
 
 #################################### audio ####################################
 
+sub extension_from_file {
+    my $file = shift;
+    return( ( fileparse($file, qr/\.[^.]*/) )[-1] );
+}
+
 sub filename_from_uri {
     my $uri = shift;
 
@@ -263,9 +269,15 @@ sub filename_from_uri {
 }
 
 sub normalize_audio {
-    my $item = shift;
-    my $uri  = item_url($item);
-    my $file = filename_from_uri($uri);
+    my $item  = shift;
+    my $uri   = item_url($item);
+    my $file  = filename_from_uri($uri);
+    my $title = item_title($item);
+
+    # change the title into a filename; this will guarantee unique filenames
+    $title =~ s/\s+/-/g;
+    $title =~ s/://g;
+    $title .= extension_from_file($file);
 
     # perl idiom for "if directory doesn't exist, make it"
     -d IN_DIR  or mkdir IN_DIR;
@@ -274,7 +286,7 @@ sub normalize_audio {
     # construct fill pathnames to the file we're downloading and
     # then normalizing to
     my $infile  = join '/', IN_DIR,  $file;
-    my $outfile = join '/', OUT_DIR, $file;
+    my $outfile = join '/', OUT_DIR, $title;
 
     # fetch the MP3 file using LWP::Simple
     my $code = getstore($uri, $infile);
@@ -295,7 +307,7 @@ sub normalize_audio {
     my $size = -s $outfile || 0;
 
     # re-write the bits of the item we're changing
-    item_url($item, join '/', MEDIA_URL, $file);
+    item_url($item, join '/', MEDIA_URL, $title);
     item_length($item, $size);
 
     # send the normalized MP3 file up to the webserver
@@ -498,6 +510,11 @@ sub enclosure_pseudo_accessor {
 sub item_url {
     my $hash = shift;
     enclosure_pseudo_accessor($hash, 'url', @_);
+}
+
+sub item_title {
+    my $hash = shift;
+    enclosure_pseudo_accessor($hash, 'title', @_);
 }
 
 sub item_length {
