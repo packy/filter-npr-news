@@ -272,7 +272,7 @@ sub normalize_audio {
     my $item  = shift;
     my $uri   = item_url($item);
     my $file  = filename_from_uri($uri);
-    my $title = item_title($item);
+    my $title = fix_whitespace($item->{title});
 
     # change the title into a filename; this will guarantee unique filenames
     $title =~ s/\s+/-/g;
@@ -419,6 +419,7 @@ sub log_rename_and_push {
 
 sub log_rotate {
     my ($old, $new);
+    return if $ENV{NPR_NOROTATE};
 
     my $num_digits = length(LOG_KEEP);
     my $log_format = LOGFILE;
@@ -510,11 +511,6 @@ sub enclosure_pseudo_accessor {
 sub item_url {
     my $hash = shift;
     enclosure_pseudo_accessor($hash, 'url', @_);
-}
-
-sub item_title {
-    my $hash = shift;
-    enclosure_pseudo_accessor($hash, 'title', @_);
 }
 
 sub item_length {
