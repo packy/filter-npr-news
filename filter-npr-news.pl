@@ -19,7 +19,7 @@ use constant {
     TITLE_ADD   => ' (filtered by packy)',
     TITLE_MAX   => 40, # characters
     SLEEP_FOR   => 120, # seconds (2 minutes)
-    MAX_RETRIES => 10,
+    MAX_RETRIES => 20,
     KEEP_DAYS   => 7,
 
     REMOTE_HOST => 'www.dardan.com',
