@@ -5,6 +5,7 @@ use Data::Dumper::Concise;
 use DateTime;
 use DateTime::Format::Mail;
 use File::Basename;
+use IPC::PerlSSH;
 use LWP::Simple;
 use Net::OpenSSH;
 use URI;
@@ -30,7 +31,8 @@ use constant {
 
     TZ          => 'America/New_York',
     LOG_KEEP    => 48, # number of old log files to keep
-    LOGFILE     => '/tmp/npr-news.txt',
+    LOGFILE     => 'npr-news.txt',
+    LOGDIR      => '/tmp/',
     XMLFILE     => '/tmp/npr-news.xml',
     IN_DIR      => '/tmp/incoming',
     OUT_DIR     => '/tmp/outgoing',
@@ -67,43 +69,27 @@ foreach my $retry (1 .. MAX_RETRIES + 1) {
 
     # if a new show was published in the feed, we don't need to wait
     # in a loop for a new one
-    last unless same_show_as_last_time( $items );
+    if ( same_show_as_last_time( $items ) ) {
 
-    # we don't want the script to wait forever - if no new episode
-    # appears after a maximum number of retries, give up and generate
-    # the feed with the episodes we have
-    if ($retry > MAX_RETRIES) {
-        write_log("MAX_RETRIES (".MAX_RETRIES.") exceeded");
-        last;
+        # we don't want the script to wait forever - if no new episode
+        # appears after a maximum number of retries, give up and generate
+        # the feed with the episodes we have
+        if ($retry > MAX_RETRIES) {
+            write_log("MAX_RETRIES (".MAX_RETRIES.") exceeded");
+            last;
+        }
+
+        sleep_for_a_while($retry);
+        next;
     }
 
-    # for debugging purposes, I want to be able to not have the script
-    # sleep, and the choices were add command line switch processing
-    # or check an environment variable. This was the simpler option.
-    if ($ENV{NPR_NOSLEEP}) {
-        write_log("NPR_NOSLEEP=$ENV{NPR_NOSLEEP}; not sleeping");
-        last;
-    }
+    # Ok, try to fetch the audio if it meets our criteria
+    last if fetch_new_shows($items);
 
-    # log the fact that we're sleeping so we can observe what the
-    # script is doing while it's running
-    write_log("Sleeping for ".SLEEP_FOR." seconds...");
-
-    # since I usually want to listen to these podcasts when I'm away
-    # from my desktop computer, copy the log file up to the webserver
-    # so I can check on it remotely.  this way, if it's spending an
-    # inordinate amount of time waiting for a new episode, I can see
-    # that from my phone's browser...
-    push_log_to_remotehost();
-
-    # actually sleep
-    sleep SLEEP_FOR;
-
-    # and note which number retry this is
-    write_log("Trying RSS feed again (retry #$retry)");
+    write_log("Unable to fetch show!");
+    sleep_for_a_while($retry);
 }
 
-# test to see if the new item matches our inclusion criteria, and then
 # fill the item list with items we've cached in our database
 get_items_from_database( $items );
 
@@ -124,7 +110,36 @@ push_xml_to_remotehost();
 
 #################################### subs ####################################
 
-sub get_items_from_database {
+sub sleep_for_a_while {
+    my $retry = shift;
+
+    # for debugging purposes, I want to be able to not have the script
+    # sleep, and the choices were add command line switch processing
+    # or check an environment variable. This was the simpler option.
+    if ($ENV{NPR_NOSLEEP}) {
+        write_log("NPR_NOSLEEP=$ENV{NPR_NOSLEEP}; not sleeping");
+        return;
+    }
+
+    # log the fact that we're sleeping so we can observe what the
+    # script is doing while it's running
+    write_log("Sleeping for ".SLEEP_FOR." seconds...");
+
+    # since I usually want to listen to these podcasts when I'm away
+    # from my desktop computer, copy the log file up to the webserver
+    # so I can check on it remotely.  this way, if it's spending an
+    # inordinate amount of time waiting for a new episode, I can see
+    # that from my phone's browser...
+    push_log_to_remotehost();
+
+    # actually sleep
+    sleep SLEEP_FOR;
+
+    # and note which number retry this is
+    write_log("Trying RSS feed again (retry #$retry)");
+}
+
+sub fetch_new_shows {
     my $items = shift;
 
     # build the regex for matching desired episodes from keywords
@@ -139,6 +154,7 @@ sub get_items_from_database {
 
     # I know the feed only has the one item in it, but it SHOULD have
     # more, so let's go through the motions of checking each item
+    my $success = 1;
 
     foreach my $item (@$items) {
 
@@ -152,6 +168,7 @@ sub get_items_from_database {
 
         if ($title !~ /$re/ && ! $ENV{NPR_NOSKIP}) {
             write_log("'$title' doesn't match $re; skipping");
+            save_show_for_next_time($item);
             next;
         }
         elsif ($ENV{NPR_NOSKIP}) {
@@ -172,7 +189,7 @@ sub get_items_from_database {
         # so quiet it's impossible to ehar them when listening on a
         # city street, so, let's normalize them to a maximum volume
 
-        normalize_audio($item);
+        $success &&= normalize_audio($item);
 
         write_log("Adding '$title' to database");
 
@@ -182,6 +199,11 @@ sub get_items_from_database {
         # it again.
         $insert->execute($epoch, Dumper($item));
     }
+    return $success;
+}
+
+sub get_items_from_database {
+    my $items = shift;
 
     # go through the database and dump episodes that are older than
     # our retention period.  Since we're using epoch time (seconds
@@ -234,11 +256,6 @@ sub same_show_as_last_time {
     $get_last_show->execute;
     my ($last_time, $last_title) = $get_last_show->fetchrow;
 
-    # save the episode we just fetched for next time
-    my $update = $dbh->prepare("UPDATE last_show SET pubdate = ?, title = ? ".
-                               " WHERE pubdate = ?");
-    $update->execute($epoch, $title, $last_time);
-
     # now compare the current episode with the one we got from the DB
     my $is_same = ($last_time == $epoch);
 
@@ -247,6 +264,17 @@ sub same_show_as_last_time {
     }
 
     return $is_same;
+}
+
+sub save_show_for_next_time {
+    my $item = shift;
+
+    # get the information for the current episode
+    my ($epoch, $title) = item_info($item);
+
+    # save the episode we just fetched for next time
+    my $update = $dbh->prepare("UPDATE last_show SET pubdate = ?, title = ?");
+    $update->execute($epoch, $title);
 }
 
 #################################### audio ####################################
@@ -310,12 +338,16 @@ sub normalize_audio {
     item_url($item, join '/', MEDIA_URL, $title);
     item_length($item, $size);
 
+    save_show_for_next_time($item);
+
     # send the normalized MP3 file up to the webserver
     push_media_to_remotehost($outfile);
 
     # clean up after ourselves
     unlink $infile;
     unlink $outfile;
+
+    return 1;
 }
 
 #################################### db ####################################
@@ -340,6 +372,7 @@ sub get_dbh {
         $dbh->do("CREATE INDEX shows_idx ON shows (pubdate);");
         $dbh->do("CREATE TABLE last_show (pubdate INTEGER PRIMARY KEY, ".
                  "                        title   TEXT)");
+        $dbh->do("INSERT INTO last_show VALUES (0, '')");
     }
 
     return $dbh;
@@ -383,7 +416,7 @@ sub push_xml_to_remotehost {
 }
 
 sub push_log_to_remotehost {
-    push_to_remotehost(LOGFILE, REMOTE_DIR);
+    push_to_remotehost(LOGDIR . LOGFILE, REMOTE_DIR);
 }
 
 sub push_media_to_remotehost {
@@ -397,7 +430,7 @@ sub write_log {
     # I'm opening and closing the logfile every time I write to it so
     # it's easier for external processes to monitor the progress of
     # this script
-    open my $logfile, '>>', LOGFILE;
+    open my $logfile, '>>', LOGDIR . LOGFILE;
 
     my $now = now();
     my $ts  = $now->ymd . q{ } . $now->hms . q{ };
@@ -421,18 +454,51 @@ sub log_rotate {
     my ($old, $new);
     return if $ENV{NPR_NOROTATE};
 
-    my $num_digits = length(LOG_KEEP);
-    my $log_format = LOGFILE;
-    $log_format =~ s/(\.[^\.]+)$/-%0${num_digits}d$1/;
+    my $ipc = IPC::PerlSSH->new( Host => REMOTE_HOST, User => REMOTE_USER );
 
-    foreach my $i (reverse 1 .. LOG_KEEP - 1) {
-        $old = sprintf $log_format, $i;
-        $new = sprintf $log_format, $i + 1;
-        log_rename_and_push($old, $new);
+    my $code = <<'CODE';
+my $keep = shift;
+my $log  = shift;
+my $dir  = shift;
+my $dir2 = $dir . 'npr/';
+my $num_digits = length($keep);
+(my $format = $log) =~ s/(\.[^\.]+)$/-%0${num_digits}d$1/;
+my @return;
+foreach my $i (reverse 1 .. $keep - 1) {
+    my $old = sprintf $format, $i;
+    my $new = sprintf $format, $i + 1;
+    if (rename "$dir2$old", "$dir2$new") {
+        push @return, "Renamed $old to $new";
     }
+    else {
+        push @return, "Unable to rename $old to $new: $!";
+    }
+}
 
-    $new = sprintf $log_format, 1;
-    log_rename_and_push(LOGFILE, $new);
+my $new = sprintf $format, 1;
+if (rename "$dir$log", "$dir2$new") {
+    push @return, "Renamed $log to $new";
+}
+else {
+    push @return, "Unable to rename $log to $new: $!";
+}
+
+return @return;
+CODE
+
+    $ipc->store('log_rotate', $code);
+
+    write_log('Rotating logs on webserver...');
+    push_log_to_remotehost();
+
+    my @results = $ipc->call('log_rotate', LOG_KEEP, LOGFILE, REMOTE_DIR);
+
+    foreach my $line (@results) {
+        write_log($line);
+    }
+    write_log('Done with log rotation');
+    push_log_to_remotehost();
+    unlink LOGDIR . LOGFILE;
 }
 
 INIT {
