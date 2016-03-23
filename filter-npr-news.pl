@@ -189,15 +189,8 @@ sub fetch_new_shows {
         # so quiet it's impossible to ehar them when listening on a
         # city street, so, let's normalize them to a maximum volume
 
-        $success &&= normalize_audio($item);
+        $success &&= normalize_audio($item, $insert);
 
-        write_log("Adding '$title' to database");
-
-        # it's easier to store the data in the episode cache table as
-        # a perl representation of the parsed data than it is to
-        # serialize it back into XML and then re-parse it when we need
-        # it again.
-        $insert->execute($epoch, Dumper($item));
     }
     return $success;
 }
@@ -297,10 +290,13 @@ sub filename_from_uri {
 }
 
 sub normalize_audio {
-    my $item  = shift;
-    my $uri   = item_url($item);
-    my $file  = filename_from_uri($uri);
-    my $title = fix_whitespace($item->{title});
+    my $item   = shift;
+    my $insert = shift;
+    my $uri    = item_url($item);
+    my $file   = filename_from_uri($uri);
+
+    my ($epoch, $title) = item_info($item);
+    $title = fix_whitespace($title);
 
     # change the title into a filename; this will guarantee unique filenames
     $title =~ s/\s+/-/g;
@@ -346,6 +342,13 @@ sub normalize_audio {
     # clean up after ourselves
     unlink $infile;
     unlink $outfile;
+
+    # it's easier to store the data in the episode cache table as
+    # a perl representation of the parsed data than it is to
+    # serialize it back into XML and then re-parse it when we need
+    # it again.
+    write_log("Adding '$title' to database");
+    $insert->execute($epoch, Dumper($item));
 
     return 1;
 }
