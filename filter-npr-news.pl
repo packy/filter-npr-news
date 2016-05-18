@@ -324,7 +324,11 @@ sub normalize_audio {
 
     # call SoX to normalize the audio
     write_log("Normalizing $infile to $outfile");
-    system join(q{ }, SOX_BINARY, '--norm', $infile, $outfile);
+    my $sox_cmd = join q{ }, SOX_BINARY, '--norm', $infile, $outfile;
+    system($sox_cmd) == 0 or do {
+        write_log("Error running '$sox_cmd': $?");
+        return;
+    };
 
     # the feed doesn't publish an item length in bytes, but it really
     # ought to, so let's get the size of the MP3 file.
