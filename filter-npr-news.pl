@@ -4,6 +4,7 @@ use DBI;
 use Data::Dumper::Concise;
 use DateTime;
 use DateTime::Format::Mail;
+use Fcntl qw(:flock);
 use File::Basename;
 use IPC::PerlSSH;
 use LWP::Simple;
@@ -11,6 +12,7 @@ use Net::OpenSSH;
 use URI;
 use XML::RSS;
 use strict;
+use warnings;
 
 use feature qw( say state );
 
@@ -509,8 +511,12 @@ CODE
 }
 
 INIT {
+    # if we can't get an exclusive log on our __DATA__ section,
+    # another copy of us must be running
+    exit unless flock(DATA, LOCK_EX|LOCK_NB);
+
     log_rotate(); # rotate out old log files
-    write_log('Started run'); # log that the run has started
+    write_log("Started run (pid $$)"); # log that the run has started
 
     # register a DIE handler that will write whatever message I die() with
     # to our logfile so I can see it in the logs
@@ -522,11 +528,17 @@ INIT {
 }
 
 END {
-    # when the program finishes, log that
-    write_log('Finished run');
+    if (flock(DATA, LOCK_EX|LOCK_NB)) {
+        # when the program finishes, log that
+        write_log("Finished run (pid $$)");
 
-    # and, so I can see these logs remotely, push them up to the webserver
-    push_log_to_remotehost();
+        # and, so I can see these logs remotely, push them up to the webserver
+        push_log_to_remotehost();
+    }
+    else {
+        write_log("Duplicate run; exiting (pid $$)");
+    }
+
 }
 
 ##################################### XML #####################################
@@ -619,4 +631,9 @@ sub _get_default_modules {
     };
 }
 
-__END__
+package main;
+
+__DATA__
+This exists so flock() can be used to ensure only one copy of this
+is running at once.
+DO NOT REMOVE THIS DATA SECTION.
