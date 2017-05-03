@@ -5,6 +5,7 @@
 
 from bs4 import BeautifulSoup  # for parsing the HTML of the articles
 from lxml import etree
+from subprocess import call
 import sys, urllib
 
 feedurl = 'http://www.npr.org/rss/rss.php?id=2101289'
@@ -41,3 +42,5 @@ for item in doc.xpath('/rss/channel/item'):
 # re-write the XML to a file!
 outFile = open(xmlfile, 'w')
 doc.write(outFile)
+
+call([ 'scp', xmlfile, 'dardanco@www.dardan.com:www/packy/npr/' ])
