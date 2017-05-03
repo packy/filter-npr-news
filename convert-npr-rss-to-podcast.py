@@ -8,6 +8,7 @@ from lxml import etree
 import sys, urllib
 
 feedurl = 'http://www.npr.org/rss/rss.php?id=2101289'
+xmlfile = '/tmp/nina.xml'
 
 doc = etree.parse(feedurl)
 ns = {'content':'http://purl.org/rss/1.0/modules/content/'}
@@ -38,5 +39,5 @@ for item in doc.xpath('/rss/channel/item'):
         pass
 
 # re-write the XML to a file!
-outFile = open('/tmp/nina.xml', 'w')
+outFile = open(xmlfile, 'w')
 doc.write(outFile)
