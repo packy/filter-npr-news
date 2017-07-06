@@ -547,6 +547,8 @@ INIT {
         write_log('FATAL: '.$err);
         # if we die(), after this runs, the END block will be executed!
     };
+
+    write_log(`/usr/bin/pmset -g sched`);
 }
 
 END {
