@@ -315,9 +315,11 @@ sub normalize_audio {
     my $outfile = join '/', OUT_DIR, $title;
 
     # fetch the MP3 file using LWP::Simple
-    my $code = getstore($uri, $infile);
-    write_log("Fetched '$uri' to $infile; RESULT $code");
-    return unless $code == 200;
+#    my $code = getstore($uri, $infile);
+#    write_log("Fetched '$uri' to $infile; RESULT $code");
+#    return unless $code == 200;
+$uri =~ s/&/\&/g;
+write_log(`/usr/local/bin/wget -O $infile $uri 2>&1`);
 
     # if, for some reason, we don't have the program to normalize audio,
     # crash with a message complaining about it being missing
