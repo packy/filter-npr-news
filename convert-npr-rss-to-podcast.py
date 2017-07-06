@@ -14,6 +14,9 @@ xmlfile = '/tmp/nina.xml'
 doc = etree.parse(feedurl)
 ns = {'content':'http://purl.org/rss/1.0/modules/content/'}
 
+for image in doc.xpath('/rss/channel/image/url'):
+    image.text = 'http://packy.dardan.com/npr/ninatotenbergtile_sq.png'
+
 for item in doc.xpath('/rss/channel/item'):
 
     # the content is CDATA coming in, but unless I explicitly make it
