@@ -512,10 +512,30 @@ CODE
     unlink LOGDIR . LOGFILE;
 }
 
+my ($lock_on_self_fh, $exclusive_lock_on_self);
+
+sub get_exclusive_lock_on_self {
+    $exclusive_lock_on_self = 0;
+    open $lock_on_self_fh, '<', $0
+        and flock $lock_on_self_fh, LOCK_EX|LOCK_NB
+        and $exclusive_lock_on_self = 1;
+    return $exclusive_lock_on_self;
+}
+
+sub has_exclusive_lock_on_self {
+    defined $exclusive_lock_on_self or get_exclusive_lock_on_self();
+    return $exclusive_lock_on_self;
+}
+
+sub release_exclusive_lock_on_self {
+    $exclusive_lock_on_self = 0;
+    flock $lock_on_self_fh, LOCK_UN;
+}
+
 INIT {
     # if we can't get an exclusive log on our __DATA__ section,
     # another copy of us must be running
-    exit unless flock(DATA, LOCK_EX|LOCK_NB);
+    exit unless has_exclusive_lock_on_self();
 
     log_rotate(); # rotate out old log files
     write_log("Started run (pid $$)"); # log that the run has started
@@ -530,7 +550,9 @@ INIT {
 }
 
 END {
-    if (flock(DATA, LOCK_EX|LOCK_NB)) {
+    if ( has_exclusive_lock_on_self() ) {
+        release_exclusive_lock_on_self();
+
         # when the program finishes, log that
         write_log("Finished run (pid $$)");
 
@@ -632,10 +654,3 @@ sub _get_default_modules {
         'http://purl.org/dc/elements/1.1/'           => 'dc',
     };
 }
-
-package main;
-
-__DATA__
-This exists so flock() can be used to ensure only one copy of this
-is running at once.
-DO NOT REMOVE THIS DATA SECTION.
