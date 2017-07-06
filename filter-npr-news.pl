@@ -44,8 +44,8 @@ use constant {
 };
 
 # list of times we want - different times on weekends
-my @keywords = is_weekday() ? qw( 7AM 8AM 12PM 6PM 7PM )
-             :                qw( 7AM     12PM     7PM );
+my @keywords = is_weekday() ? qw( 6AM 7AM 8AM 12PM 3PM 6PM 7PM )
+             :                qw(     7AM     12PM         7PM );
 
 my $dbh = get_dbh();  # used in a couple places, best to be global
 
