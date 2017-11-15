@@ -342,14 +342,14 @@ write_log(`/usr/local/bin/wget -O $infile $uri 2>&1`);
     item_url($item, join '/', MEDIA_URL, $title);
     item_length($item, $size);
 
-    save_show_for_next_time($item);
-
     # send the normalized MP3 file up to the webserver
-    push_media_to_remotehost($outfile);
+    if ( push_media_to_remotehost($outfile) ) {
+        save_show_for_next_time($item);
 
-    # clean up after ourselves
-    unlink $infile;
-    unlink $outfile;
+        # clean up after ourselves
+        unlink $infile;
+        unlink $outfile;
+    }
 
     # it's easier to store the data in the episode cache table as
     # a perl representation of the parsed data than it is to
@@ -414,9 +414,11 @@ sub push_to_remotehost {
 
     if ( $ssh->scp_put($from, $to) ) {
         write_log("Copy success");
+        return 1;
     }
     else {
         write_log("COPY ERROR: ". $ssh->error);
+        return 0;
     }
 }
 
