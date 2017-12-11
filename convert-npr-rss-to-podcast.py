@@ -11,7 +11,13 @@ import sys, urllib
 feedurl = 'http://www.npr.org/rss/rss.php?id=2101289'
 xmlfile = '/tmp/nina.xml'
 
-doc = etree.parse(feedurl)
+response = urllib.urlopen(feedurl)
+data = response.read()
+outFile = open(xmlfile, 'w')
+outFile.write(data)
+outFile.close()
+
+doc = etree.parse(xmlfile)
 ns = {'content':'http://purl.org/rss/1.0/modules/content/'}
 
 for image in doc.xpath('/rss/channel/image/url'):
