@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>UserName</key>
+  <string>packy</string>
+  <key>GroupName</key>
+  <string>wheel</string>
+  <key>Label</key>
+  <string>com.packay.npr-news</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/packy/bin/filter-npr-news-cron.sh</string>
+  </array>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>StartCalendarInterval</key>
+  <array>
+    <dict>
+      <key>Minute</key>
+      <integer>10</integer>
+    </dict>
+  </array>
+</dict>
+</plist>
