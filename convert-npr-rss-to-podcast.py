@@ -8,10 +8,11 @@ xmlfile = '/tmp/nina.xml'
 
 from bs4 import BeautifulSoup  # for parsing the HTML of the articles
 from lxml import etree
+from pathlib import Path
 import io
-import os
 import re
 import requests
+import shutil
 import socket
 import subprocess
 import sys
@@ -61,7 +62,7 @@ et = etree.ElementTree(doc.getroot())
 et.write(xmlfile, pretty_print=True)
 
 if re.search(r'bluehost\.com', socket.gethostname()):
-    os.rename(xmlfile, '~/www/packy/npr/nina.xml')
+    shutil.move(xmlfile, str(Path.home())+'/www/packy/npr/nina.xml')
 else:
     # copy the file up to my webserver so my phone can get it
     p = subprocess.Popen([ 'scp', xmlfile, 'dardanco@www.dardan.com:www/packy/npr/' ])
