@@ -8,10 +8,13 @@ xmlfile = '/tmp/nina.xml'
 
 from bs4 import BeautifulSoup  # for parsing the HTML of the articles
 from lxml import etree
+import io
+import os
+import re
 import requests
+import socket
 import subprocess
 import sys
-import io
 
 # download the XML file from the URL and write it to a file
 response = requests.get(feedurl)
@@ -57,6 +60,9 @@ for item in doc.xpath('/rss/channel/item'):
 et = etree.ElementTree(doc.getroot())
 et.write(xmlfile, pretty_print=True)
 
-# copy the file up to my webserver so my phone can get it
-p = subprocess.Popen([ 'scp', xmlfile, 'dardanco@www.dardan.com:www/packy/npr/' ])
-sts = p.wait
+if re.match(r'bluehost\.com', socket.gethostname()):
+    os.move(xmlfile, '~/www/packy/npr/nina.xml')
+else:
+    # copy the file up to my webserver so my phone can get it
+    p = subprocess.Popen([ 'scp', xmlfile, 'dardanco@www.dardan.com:www/packy/npr/' ])
+    sts = p.wait
