@@ -11,12 +11,12 @@ from lxml import etree
 import requests
 import subprocess
 import sys
+import io
 
 # download the XML file from the URL and write it to a file
 response = requests.get(feedurl)
-outFile = open(xmlfile, 'w')
-outFile.write(response.text)
-outFile.close()
+with io.open(xmlfile, 'w', encoding='utf8') as outFile:
+    outFile.write(response.text)
 
 # now use the lxml.etree parser to parse it
 doc = etree.parse(xmlfile)
