@@ -60,8 +60,8 @@ for item in doc.xpath('/rss/channel/item'):
 et = etree.ElementTree(doc.getroot())
 et.write(xmlfile, pretty_print=True)
 
-if re.match(r'bluehost\.com', socket.gethostname()):
-    os.move(xmlfile, '~/www/packy/npr/nina.xml')
+if re.search(r'bluehost\.com', socket.gethostname()):
+    os.reanme(xmlfile, '~/www/packy/npr/nina.xml')
 else:
     # copy the file up to my webserver so my phone can get it
     p = subprocess.Popen([ 'scp', xmlfile, 'dardanco@www.dardan.com:www/packy/npr/' ])
