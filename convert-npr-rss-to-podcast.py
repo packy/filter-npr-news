@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # learning Python, why not use it to rewrite NPR's RSS feed for Nina Totenberg
 # so it's a podcast again?
@@ -8,14 +8,14 @@ xmlfile = '/tmp/nina.xml'
 
 from bs4 import BeautifulSoup  # for parsing the HTML of the articles
 from lxml import etree
+import requests
 import subprocess
-import sys, urllib
+import sys
 
 # download the XML file from the URL and write it to a file
-response = urllib.urlopen(feedurl)
-data = response.read()
+response = requests.get(feedurl)
 outFile = open(xmlfile, 'w')
-outFile.write(data)
+outFile.write(response.text)
 outFile.close()
 
 # now use the lxml.etree parser to parse it
@@ -38,7 +38,8 @@ for item in doc.xpath('/rss/channel/item'):
     link  = item.xpath('./link/text()')[0]
 
     # parse the article
-    soup = BeautifulSoup(urllib.urlopen(link), 'html.parser')
+    response = requests.get(link)
+    soup = BeautifulSoup(response.text, 'html.parser')
 
     # find the link to the audio
     tag = soup.body.find('a', class_="audio-module-listen")
@@ -53,8 +54,8 @@ for item in doc.xpath('/rss/channel/item'):
         pass
 
 # re-write the XML to the file we got it from
-outFile = open(xmlfile, 'w')
-doc.write(outFile)
+et = etree.ElementTree(doc.getroot())
+et.write(xmlfile, pretty_print=True)
 
 # copy the file up to my webserver so my phone can get it
 p = subprocess.Popen([ 'scp', xmlfile, 'dardanco@www.dardan.com:www/packy/npr/' ])
